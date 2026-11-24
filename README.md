@@ -26,14 +26,22 @@ Le panneau de résultat permet de copier la réponse en texte brut (⇧⌘C), de
 
 ## Installation
 
-1. Télécharger le `.dmg` de la [dernière release](https://github.com/gonzalt03/plume/releases/latest), l'ouvrir et glisser Plume sur le dossier Applications.
-2. Au premier lancement, faire clic droit > Ouvrir (l'app n'est pas notariée par Apple), ou lever la quarantaine :
+Dans le Terminal :
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/Plume.app
+curl -fsSL https://raw.githubusercontent.com/gonzalt03/plume/main/install.sh | bash
 ```
 
-3. Autoriser Plume dans **Réglages Système > Confidentialité et sécurité > Accessibilité** (nécessaire pour lire la sélection et coller le résultat).
+Le script télécharge la dernière release, installe Plume dans Applications et la lance. Il reste à autoriser Plume dans **Réglages Système > Confidentialité et sécurité > Accessibilité** (nécessaire pour lire la sélection et coller le résultat).
+
+### Avec le DMG
+
+Télécharger le `.dmg` de la [dernière release](https://github.com/gonzalt03/plume/releases/latest), l'ouvrir et glisser Plume sur le dossier Applications. Plume n'est pas notariée par Apple : au premier lancement, macOS affiche « Apple n'a pas pu confirmer que Plume ne contenait pas de logiciel malveillant ». Pour l'autoriser :
+
+1. Fermer ce message.
+2. Ouvrir **Réglages Système > Confidentialité et sécurité**, descendre jusqu'à « Plume a été bloquée » et cliquer sur **Ouvrir quand même**.
+
+Ou, dans le Terminal : `xattr -dr com.apple.quarantine /Applications/Plume.app`
 
 Plume se met ensuite à jour toute seule : elle vérifie les releases GitHub au lancement puis toutes les 24 h et propose d'installer la nouvelle version (menu « Rechercher les mises à jour… »).
 
