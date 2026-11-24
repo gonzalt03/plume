@@ -23,40 +23,19 @@ Le panneau de résultat permet de copier la réponse en texte brut (⇧⌘C), de
 
 - macOS 13 ou plus récent, Mac Apple Silicon
 - [Claude Code](https://claude.com/claude-code) installé et connecté (`claude` dans `~/.local/bin`, `/opt/homebrew/bin` ou `/usr/local/bin`) : Plume appelle `claude -p`, donc utilise ton abonnement, sans clé API
-- Outils en ligne de commande Xcode (`swiftc`, `iconutil`, `codesign`)
 
 ## Installation
 
-### Depuis la release
-
-Télécharger le `.dmg` de la [dernière release](https://github.com/gonzalt03/plume/releases/latest), l'ouvrir et glisser Plume sur le dossier Applications. L'app n'est pas notariée par Apple : au premier lancement, faire clic droit > Ouvrir, ou lever la quarantaine :
+1. Télécharger le `.dmg` de la [dernière release](https://github.com/gonzalt03/plume/releases/latest), l'ouvrir et glisser Plume sur le dossier Applications.
+2. Au premier lancement, faire clic droit > Ouvrir (l'app n'est pas notariée par Apple), ou lever la quarantaine :
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Plume.app
 ```
 
+3. Autoriser Plume dans **Réglages Système > Confidentialité et sécurité > Accessibilité** (nécessaire pour lire la sélection et coller le résultat).
+
 Plume se met ensuite à jour toute seule : elle vérifie les releases GitHub au lancement puis toutes les 24 h et propose d'installer la nouvelle version (menu « Rechercher les mises à jour… »).
-
-### Depuis les sources
-
-```bash
-./build.sh
-```
-
-Compile l'app, l'installe dans `~/Applications/Plume.app` et la lance. Au premier lancement, autoriser Plume dans **Réglages Système > Confidentialité et sécurité > Accessibilité** (nécessaire pour lire la sélection et coller le résultat).
-
-### Garder l'autorisation entre deux compilations
-
-Avec une signature ad hoc, macOS considère chaque build comme une nouvelle app et retire l'autorisation d'accessibilité. Pour l'éviter, créer une fois un certificat de signature local nommé `Plume` : `build.sh` l'utilise automatiquement s'il existe.
-
-```bash
-D=$(mktemp -d) && cd "$D"
-printf '[req]\ndistinguished_name=dn\nprompt=no\nx509_extensions=ext\n[dn]\nCN=Plume\n[ext]\nbasicConstraints=critical,CA:false\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=critical,codeSigning\n' > cfg
-openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 3650 -config cfg
-openssl pkcs12 -export -legacy -inkey key.pem -in cert.pem -out plume.p12 -passout pass:plume
-security import plume.p12 -k ~/Library/Keychains/login.keychain-db -P plume -T /usr/bin/codesign
-cd - && rm -rf "$D"
-```
 
 ## Fonctionnement
 
@@ -66,23 +45,6 @@ cd - && rm -rf "$D"
 - Le menu de la barre permet de désactiver la barre, de choisir le modèle (Haiku par défaut, Sonnet, Opus) et de lancer Plume à l'ouverture de session.
 - Journal de diagnostic : `~/Library/Logs/Plume.log`.
 
-## Contrôle avant publication
+## Contribuer
 
-Le dépôt est public : un contrôle automatique bloque tout commit ou push contenant des données sensibles (clés privées, jetons d'API, mots de passe, chemins personnels, adresses e-mail autres que l'adresse noreply GitHub, fichiers `.p12`/`.pem`/`.env`/`.log`, fichiers de plus de 5 Mo).
-
-```bash
-git config core.hooksPath .githooks   # à faire une fois après le clone
-scripts/check-public.sh all           # contrôle manuel de tout le dépôt
-```
-
-Des termes privés supplémentaires (un motif par ligne) peuvent être listés dans `.public-check-local`, fichier ignoré par git.
-
-## Structure
-
-- `Sources/main.swift` : toute l'app (AppKit + SwiftUI)
-- `tools/make-icon.swift` : génération de l'icône et de l'icône de barre de menu
-- `build.sh` : compilation, signature, installation
-- `scripts/make-dmg.sh` : image disque d'installation (nécessite `brew install create-dmg`)
-- `scripts/release.sh <version> <notes.md>` : publication d'une version (DMG + release GitHub)
-- `docs/demo.svg` : animation de démonstration
-- `scripts/check-public.sh`, `.githooks/` : contrôle avant publication
+Compilation depuis les sources, publication et structure du code : voir [CONTRIBUTING.md](CONTRIBUTING.md).
