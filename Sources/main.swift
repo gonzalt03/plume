@@ -698,6 +698,288 @@ struct ResultView: View {
     }
 }
 
+// MARK: - Déplacement dans le dossier Applications
+
+enum AppMover {
+    /// Chemin réel de l'app, même si macOS l'exécute depuis une copie « translocated »
+    /// (app téléchargée lancée depuis son dossier d'origine).
+    static func originalBundleURL() -> URL {
+        let url = Bundle.main.bundleURL
+        guard url.path.contains("/AppTranslocation/"),
+              let handle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY),
+              let sym = dlsym(handle, "SecTranslocateCreateOriginalPathForURL") else { return url }
+        typealias Fn = @convention(c) (CFURL, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> Unmanaged<CFURL>?
+        let fn = unsafeBitCast(sym, to: Fn.self)
+        return fn(url as CFURL, nil)?.takeRetainedValue() as URL? ?? url
+    }
+
+    static func isInApplications(_ url: URL) -> Bool {
+        let parent = url.deletingLastPathComponent().standardizedFileURL.path
+        return parent.hasPrefix("/Applications") || parent.hasPrefix(NSHomeDirectory() + "/Applications")
+    }
+
+    /// Propose de déplacer Plume dans Applications. Renvoie true si l'app va se relancer.
+    static func offerMoveIfNeeded() -> Bool {
+        let source = originalBundleURL()
+        guard !isInApplications(source), !UserDefaults.standard.bool(forKey: "dontAskMove") else { return false }
+
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Déplacer Plume dans le dossier Applications ?"
+        alert.informativeText = "Plume fonctionne mieux depuis le dossier Applications : lancement à l'ouverture de session et autorisation d'accessibilité conservée."
+        alert.addButton(withTitle: "Déplacer dans Applications")
+        alert.addButton(withTitle: "Pas maintenant")
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = "Ne plus demander"
+        let response = alert.runModal()
+        if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "dontAskMove") }
+        guard response == .alertFirstButtonReturn else { return false }
+
+        let fm = FileManager.default
+        let destDir = fm.isWritableFile(atPath: "/Applications") ? "/Applications" : NSHomeDirectory() + "/Applications"
+        let dest = URL(fileURLWithPath: destDir).appendingPathComponent(source.lastPathComponent)
+        do {
+            try fm.createDirectory(atPath: destDir, withIntermediateDirectories: true)
+            if fm.fileExists(atPath: dest.path) { try fm.trashItem(at: dest, resultingItemURL: nil) }
+            if source.path.hasPrefix("/Volumes/") {
+                try fm.copyItem(at: source, to: dest)           // depuis le DMG : copie
+            } else {
+                do { try fm.moveItem(at: source, to: dest) }    // sinon : déplacement
+                catch { try fm.copyItem(at: source, to: dest) }
+            }
+            run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", dest.path], wait: true)
+            // Relance la copie installée une fois ce processus terminé.
+            let pid = ProcessInfo.processInfo.processIdentifier
+            run("/bin/sh", ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done; open \"$0\"", dest.path], wait: false)
+            plumeLog("déplacée vers \(dest.path)")
+            NSApp.terminate(nil)
+            return true
+        } catch {
+            let fail = NSAlert()
+            fail.messageText = "Impossible de déplacer Plume"
+            fail.informativeText = error.localizedDescription
+            fail.runModal()
+            return false
+        }
+    }
+
+    /// Une seule instance à la fois : la plus récente remplace les anciennes.
+    static func terminateOtherInstances() {
+        guard let id = Bundle.main.bundleIdentifier else { return }
+        let me = ProcessInfo.processInfo.processIdentifier
+        for app in NSRunningApplication.runningApplications(withBundleIdentifier: id) where app.processIdentifier != me {
+            app.terminate()
+        }
+    }
+
+    @discardableResult
+    private static func run(_ path: String, _ args: [String], wait: Bool) -> Int32 {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: path)
+        p.arguments = args
+        try? p.run()
+        if wait { p.waitUntilExit(); return p.terminationStatus }
+        return 0
+    }
+}
+
+// MARK: - Mises à jour depuis les releases GitHub
+
+@MainActor
+final class Updater {
+    static let shared = Updater()
+    static let repo = "gonzalt03/plume"
+
+    struct Release { let version: String; let dmgURL: URL; let notes: String }
+
+    private(set) var available: Release?
+    private(set) var installing = false
+    var onChange: () -> Void = {}
+    private var timer: Timer?
+
+    static var autoCheck: Bool {
+        get { UserDefaults.standard.object(forKey: "autoCheckUpdates") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "autoCheckUpdates") }
+    }
+
+    var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+    }
+
+    /// Vérification au lancement puis toutes les 24 h.
+    func start() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            if Updater.autoCheck { self?.check(interactive: false) }
+        }
+        timer = Timer.scheduledTimer(withTimeInterval: 24 * 3600, repeats: true) { _ in
+            Task { @MainActor in if Updater.autoCheck { Updater.shared.check(interactive: false) } }
+        }
+    }
+
+    static func isNewer(_ a: String, than b: String) -> Bool {
+        func parts(_ v: String) -> [Int] {
+            v.trimmingCharacters(in: CharacterSet(charactersIn: "vV")).split(separator: ".").map { Int($0) ?? 0 }
+        }
+        let x = parts(a), y = parts(b)
+        for i in 0..<max(x.count, y.count) {
+            let l = i < x.count ? x[i] : 0, r = i < y.count ? y[i] : 0
+            if l != r { return l > r }
+        }
+        return false
+    }
+
+    func check(interactive: Bool) {
+        var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(Self.repo)/releases/latest")!)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("Plume-Updater", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: req) { data, _, error in
+            var release: Release?
+            if let data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let tag = json["tag_name"] as? String,
+               let assets = json["assets"] as? [[String: Any]],
+               let dmg = assets.first(where: { ($0["name"] as? String)?.hasSuffix(".dmg") == true }),
+               let urlString = dmg["browser_download_url"] as? String, let url = URL(string: urlString) {
+                release = Release(version: tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV")),
+                                  dmgURL: url, notes: json["body"] as? String ?? "")
+            }
+            let err = error?.localizedDescription
+            Task { @MainActor in Updater.shared.handle(release, error: err, interactive: interactive) }
+        }.resume()
+    }
+
+    private func handle(_ release: Release?, error: String?, interactive: Bool) {
+        guard let release else {
+            plumeLog("vérification des mises à jour : échec \(error ?? "réponse inattendue")")
+            if interactive { info("Impossible de vérifier les mises à jour", error ?? "Aucune release avec un DMG trouvée.") }
+            return
+        }
+        guard Self.isNewer(release.version, than: currentVersion) else {
+            available = nil; onChange()
+            if interactive { info("Plume est à jour", "Version \(currentVersion), la plus récente.") }
+            return
+        }
+        available = release
+        onChange()
+        plumeLog("mise à jour disponible : \(release.version)")
+        // En automatique, on ne redemande pas pour une version déjà ignorée.
+        if !interactive, UserDefaults.standard.string(forKey: "skippedVersion") == release.version { return }
+        prompt(release)
+    }
+
+    func prompt(_ release: Release) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Plume \(release.version) est disponible"
+        let notes = release.notes.count > 600 ? String(release.notes.prefix(600)) + "…" : release.notes
+        alert.informativeText = "Version installée : \(currentVersion).\n\n\(notes)"
+        alert.addButton(withTitle: "Installer et relancer")
+        alert.addButton(withTitle: "Plus tard")
+        alert.addButton(withTitle: "Ignorer cette version")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: install(release)
+        case .alertThirdButtonReturn: UserDefaults.standard.set(release.version, forKey: "skippedVersion")
+        default: break
+        }
+    }
+
+    func install(_ release: Release) {
+        guard !installing else { return }
+        installing = true
+        onChange()
+        plumeLog("téléchargement de \(release.dmgURL)")
+        URLSession.shared.downloadTask(with: release.dmgURL) { file, _, error in
+            var result: Result<URL, Error>
+            if let file {
+                // Le fichier temporaire est supprimé à la fin du callback : on le déplace.
+                let dmg = FileManager.default.temporaryDirectory.appendingPathComponent("Plume-update-\(UUID().uuidString).dmg")
+                do { try FileManager.default.moveItem(at: file, to: dmg); result = .success(dmg) }
+                catch { result = .failure(error) }
+            } else {
+                result = .failure(error ?? ClaudeRunner.error("Téléchargement impossible."))
+            }
+            let r = result
+            Task { @MainActor in Updater.shared.finishInstall(r) }
+        }.resume()
+    }
+
+    private func finishInstall(_ download: Result<URL, Error>) {
+        defer { installing = false; onChange() }
+        do {
+            let dmg = try download.get()
+            defer { try? FileManager.default.removeItem(at: dmg) }
+            let staged = try extractApp(from: dmg)
+            try verifySignature(of: staged)
+            let dest = AppMover.originalBundleURL()
+            _ = try FileManager.default.replaceItemAt(dest, withItemAt: staged)
+            Self.run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", dest.path])
+            plumeLog("mise à jour installée dans \(dest.path), relance")
+            let pid = ProcessInfo.processInfo.processIdentifier
+            Self.run("/bin/sh", ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done; open \"$0\"", dest.path], wait: false)
+            NSApp.terminate(nil)
+        } catch {
+            plumeLog("échec de la mise à jour : \(error.localizedDescription)")
+            info("Échec de la mise à jour", error.localizedDescription)
+        }
+    }
+
+    /// Monte le DMG, copie Plume.app dans un dossier temporaire, démonte.
+    private func extractApp(from dmg: URL) throws -> URL {
+        let fm = FileManager.default
+        let mount = fm.temporaryDirectory.appendingPathComponent("plume-mount-\(UUID().uuidString)")
+        let stage = fm.temporaryDirectory.appendingPathComponent("plume-stage-\(UUID().uuidString)")
+        try fm.createDirectory(at: mount, withIntermediateDirectories: true)
+        try fm.createDirectory(at: stage, withIntermediateDirectories: true)
+        guard Self.run("/usr/bin/hdiutil", ["attach", dmg.path, "-nobrowse", "-readonly", "-noautoopen", "-mountpoint", mount.path]) == 0 else {
+            throw ClaudeRunner.error("Impossible d'ouvrir l'image disque téléchargée.")
+        }
+        defer { Self.run("/usr/bin/hdiutil", ["detach", mount.path, "-force"]) }
+        let source = mount.appendingPathComponent("Plume.app")
+        let target = stage.appendingPathComponent("Plume.app")
+        guard Self.run("/usr/bin/ditto", [source.path, target.path]) == 0 else {
+            throw ClaudeRunner.error("Plume.app introuvable dans l'image disque.")
+        }
+        return target
+    }
+
+    /// La nouvelle version doit être signée avec le même certificat que l'app actuelle.
+    private func verifySignature(of app: URL) throws {
+        var selfCode: SecCode?
+        var selfStatic: SecStaticCode?
+        var requirement: SecRequirement?
+        var staticCode: SecStaticCode?
+        guard SecCodeCopySelf([], &selfCode) == errSecSuccess, let selfCode,
+              SecCodeCopyStaticCode(selfCode, [], &selfStatic) == errSecSuccess, let selfStatic,
+              SecCodeCopyDesignatedRequirement(selfStatic, [], &requirement) == errSecSuccess, let requirement,
+              SecStaticCodeCreateWithPath(app as CFURL, [], &staticCode) == errSecSuccess, let staticCode else {
+            throw ClaudeRunner.error("Vérification de signature impossible.")
+        }
+        let status = SecStaticCodeCheckValidity(staticCode, SecCSFlags(rawValue: kSecCSCheckAllArchitectures), requirement)
+        guard status == errSecSuccess else {
+            throw ClaudeRunner.error("La mise à jour n'est pas signée par le même certificat que Plume (code \(status)). Installation annulée.")
+        }
+    }
+
+    private func info(_ title: String, _ text: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = text
+        alert.runModal()
+    }
+
+    @discardableResult
+    static func run(_ path: String, _ args: [String], wait: Bool = true) -> Int32 {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: path)
+        p.arguments = args
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        do { try p.run() } catch { return -1 }
+        if wait { p.waitUntilExit(); return p.terminationStatus }
+        return 0
+    }
+}
+
 // MARK: - Contrôleur principal
 
 @MainActor
@@ -718,11 +1000,24 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var currentPoint: NSPoint = .zero
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if AppMover.offerMoveIfNeeded() { return }
+        AppMover.terminateOtherInstances()
         setupStatusItem()
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
         plumeLog("Démarrage, accessibilité autorisée : \(trusted)")
         installMonitors()
+        Updater.shared.onChange = { [weak self] in self?.rebuildMenu() }
+        Updater.shared.start()
+        // Déclencheur de test : vérifie et installe la dernière release sans confirmation.
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.plume.test-update"), object: nil, queue: .main) { _ in
+            Task { @MainActor in
+                Updater.shared.onChange = {
+                    if let r = Updater.shared.available, !Updater.shared.installing { Updater.shared.install(r) }
+                }
+                Updater.shared.check(interactive: false)
+            }
+        }
         // Déclencheur de test : ouvre le panneau avec un texte d'exemple.
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.plume.test"), object: nil, queue: .main) { [weak self] n in
             let text = (n.object as? String) ?? "Des fichiers ont transmis normalement tous les éléments réémis depuis le 1er Septembre jusqu au 8 Novembre"
@@ -793,10 +1088,43 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
 
         menu.addItem(.separator())
+        let updater = Updater.shared
+        if updater.installing {
+            let item = NSMenuItem(title: "Installation de la mise à jour…", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+        } else if let release = updater.available {
+            let item = NSMenuItem(title: "Installer Plume \(release.version)…", action: #selector(installUpdate), keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        let check = NSMenuItem(title: "Rechercher les mises à jour…", action: #selector(checkUpdates), keyEquivalent: "")
+        check.target = self
+        menu.addItem(check)
+        let auto = NSMenuItem(title: "Vérifier automatiquement", action: #selector(toggleAutoCheck), keyEquivalent: "")
+        auto.target = self
+        auto.state = Updater.autoCheck ? .on : .off
+        menu.addItem(auto)
+        let version = NSMenuItem(title: "Version \(updater.currentVersion)", action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
+
+        menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
         menu.delegate = self
         statusItem.menu = menu
+    }
+
+    @objc private func checkUpdates() { Updater.shared.check(interactive: true) }
+
+    @objc private func installUpdate() {
+        if let r = Updater.shared.available { Updater.shared.prompt(r) }
+    }
+
+    @objc private func toggleAutoCheck() {
+        Updater.autoCheck.toggle()
+        rebuildMenu()
     }
 
     @objc private func toggleEnabled() {

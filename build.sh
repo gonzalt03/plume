@@ -27,6 +27,9 @@ if security find-identity -p codesigning 2>/dev/null | grep -q '"Plume"'; then
 fi
 codesign --force --sign "$IDENTITY" "$BUNDLE"
 
+# --no-install : compile seulement (utilisé par scripts/make-dmg.sh).
+[ "${1:-}" = "--no-install" ] && { echo "Compilé : $BUNDLE"; exit 0; }
+
 pkill -x "$APP" 2>/dev/null || true
 mkdir -p "$HOME/Applications"
 rm -rf "$DEST"
