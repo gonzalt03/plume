@@ -1,57 +1,72 @@
 # Plume
 
-Petite app macOS de barre de menu : sélectionne du texte dans n'importe quelle application, une barre flottante apparaît et propose de le faire retravailler par Claude.
+[English version](README.en.md)
+
+Sélectionne du texte dans n'importe quelle app du Mac : une petite barre apparaît et Claude le corrige, le reformule, le traduit ou le résume. Un clic pour remplacer le texte, un autre pour le copier.
 
 <img src="Resources/AppIcon-preview.png" width="128" alt="Icône Plume">
 
 ![Démonstration : sélection d'un texte, action Corriger, remplacement](docs/demo.svg)
 
-## Actions
+## Aperçu
 
-| Action | Effet |
-|---|---|
-| Demander à Claude | Consigne libre sur le texte sélectionné |
-| Corriger | Orthographe, grammaire, ponctuation, sans changer le style |
-| Reformuler | Corrige et clarifie en gardant le sens et le ton |
-| Traduire | Français vers anglais, sinon vers le français |
-| Résumer | L'essentiel en quelques lignes |
-| Raccourcir | Version plus concise |
+| Barre sur la sélection | Corrections surlignées | Aucune faute |
+|---|---|---|
+| <img src="docs/screenshots/toolbar.png" width="220" alt="Barre d'actions Plume"> | <img src="docs/screenshots/panel-fix.png" width="360" alt="Panneau Corriger avec corrections surlignées"> | <img src="docs/screenshots/panel-ok.png" width="360" alt="Panneau Corriger sans faute"> |
 
-Le panneau de résultat permet de copier la réponse en texte brut (⇧⌘C), de remplacer la sélection (⌘↩), de régénérer ou de demander un suivi (« plus formel », etc.). Échap ferme le panneau.
+<img src="docs/screenshots/settings.png" width="480" alt="Réglages de Plume">
+
+## Fonctionnalités
+
+- **Barre d'actions sur la sélection**, dans toutes les apps (Mail, navigateur, Slack, Notes, Jira...), avec une bulle d'aide au survol.
+- **Actions prêtes à l'emploi** : Demander à Claude (consigne libre), Corriger, Reformuler, Traduire, Résumer, Raccourcir.
+- **Actions personnalisables** : ajoute les tiennes (« Ton pro », « Réponse polie »...), choisis l'icône, la consigne et l'ordre.
+- **Corrections surlignées** mot à mot, et confirmation claire quand il n'y a aucune faute.
+- **Panneau de résultat** : Remplacer (⌘↩), Copier en texte brut (⇧⌘C), Régénérer, demander un suivi (« plus formel »...). Échap ferme.
+- **Raccourci clavier global** (⌃⌥C par défaut) pour ouvrir la barre sur la sélection courante.
+- **Consignes personnelles** ajoutées à chaque requête (vouvoiement, typographie...).
+- **Apps exclues**, choix du modèle (Haiku, Sonnet, Opus), interface en français ou en anglais.
+- **Mises à jour automatiques** depuis les releases GitHub.
 
 ## Prérequis
 
-- macOS 13 ou plus récent, Mac Apple Silicon
-- [Claude Code](https://claude.com/claude-code) installé et connecté (`claude` dans `~/.local/bin`, `/opt/homebrew/bin` ou `/usr/local/bin`) : Plume appelle `claude -p`, donc utilise ton abonnement, sans clé API
+- macOS 13 ou plus récent (Apple Silicon ou Intel).
+- Un accès à Claude, au choix :
+  - [Claude Code](https://claude.com/claude-code) installé et connecté : Plume l'utilise avec ton abonnement, sans clé API ;
+  - ou une **clé API Anthropic** ([console.anthropic.com](https://console.anthropic.com/settings/keys)), saisie dans les réglages et stockée dans le trousseau macOS (facturation à l'usage).
 
 ## Installation
 
-Dans le Terminal :
+**Terminal (recommandé) :**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gonzalt03/plume/main/install.sh | bash
 ```
 
-Le script télécharge la dernière release, installe Plume dans Applications et la lance. Il reste à autoriser Plume dans **Réglages Système > Confidentialité et sécurité > Accessibilité** (nécessaire pour lire la sélection et coller le résultat).
+**Homebrew :**
 
-### Avec le DMG
+```bash
+brew tap gonzalt03/tap
+brew trust gonzalt03/tap   # Homebrew demande de faire confiance aux taps tiers
+brew install --cask plume
+```
 
-Télécharger le `.dmg` de la [dernière release](https://github.com/gonzalt03/plume/releases/latest), l'ouvrir et glisser Plume sur le dossier Applications. Plume n'est pas notariée par Apple : au premier lancement, macOS affiche « Apple n'a pas pu confirmer que Plume ne contenait pas de logiciel malveillant ». Pour l'autoriser :
+**DMG :** télécharger le `.dmg` de la [dernière release](https://github.com/gonzalt03/plume/releases/latest), l'ouvrir et glisser Plume sur Applications. Plume n'est pas notariée par Apple : au premier lancement, macOS affiche « Apple n'a pas pu confirmer que Plume ne contenait pas de logiciel malveillant ». Fermer le message, puis **Réglages Système > Confidentialité et sécurité > Ouvrir quand même**.
 
-1. Fermer ce message.
-2. Ouvrir **Réglages Système > Confidentialité et sécurité**, descendre jusqu'à « Plume a été bloquée » et cliquer sur **Ouvrir quand même**.
+Dans tous les cas, autoriser ensuite Plume dans **Réglages Système > Confidentialité et sécurité > Accessibilité** (nécessaire pour lire la sélection et coller le résultat).
 
-Ou, dans le Terminal : `xattr -dr com.apple.quarantine /Applications/Plume.app`
+## Mises à jour
 
-Plume se met ensuite à jour toute seule : elle vérifie les releases GitHub au lancement puis toutes les 24 h et propose d'installer la nouvelle version (menu « Rechercher les mises à jour… »).
+Plume vérifie les releases GitHub au lancement puis toutes les 24 h. Quand une nouvelle version existe :
 
-## Fonctionnement
+- une fenêtre propose **Installer et relancer**, **Plus tard** ou **Ignorer cette version** ;
+- l'icône de la barre des menus porte une **pastille**, et le menu affiche **Installer Plume x.y…**.
 
-- Détection de la sélection : glisser, double ou triple clic, puis lecture via l'API d'accessibilité ; repli sur ⌘C avec restauration du presse-papiers (Chrome, apps Electron).
-- Appel à Claude : `claude -p` sans réglages utilisateur, hooks, plugins, outils ni MCP, avec un prompt système dédié.
-- Remplacement : collage (⌘V) dans l'app d'origine, puis restauration du presse-papiers.
-- Le menu de la barre permet de désactiver la barre, de choisir le modèle (Haiku par défaut, Sonnet, Opus) et de lancer Plume à l'ouverture de session.
-- Journal de diagnostic : `~/Library/Logs/Plume.log`.
+Vérification manuelle : menu Plume > **Rechercher les mises à jour…**. Pour être aussi prévenu par GitHub : bouton **Watch > Custom > Releases** sur ce dépôt.
+
+## Confidentialité
+
+Le texte sélectionné n'est envoyé à Claude que lorsque tu cliques sur une action. Plume ne collecte rien d'autre et n'a aucun serveur : les requêtes partent directement de ton Mac vers Claude Code ou l'API Anthropic. Journal de diagnostic local : `~/Library/Logs/Plume.log`.
 
 ## Contribuer
 

@@ -10,8 +10,12 @@ DEST="$HOME/Applications/$APP.app"
 rm -rf build
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 
-swiftc -O -swift-version 5 -target arm64-apple-macos13.0 \
-  Sources/main.swift -o "$BUNDLE/Contents/MacOS/$APP"
+# Binaire universel : Apple Silicon + Intel.
+for ARCH in arm64 x86_64; do
+  swiftc -O -swift-version 5 -target "$ARCH-apple-macos13.0" Sources/*.swift -o "build/$APP-$ARCH"
+done
+lipo -create "build/$APP-arm64" "build/$APP-x86_64" -output "$BUNDLE/Contents/MacOS/$APP"
+rm -f "build/$APP-arm64" "build/$APP-x86_64"
 cp Info.plist "$BUNDLE/Contents/Info.plist"
 
 # Icônes (régénérées par tools/make-icon.swift).

@@ -44,10 +44,23 @@ Met à jour la version, lance le contrôle avant publication, commit, tag, const
 
 ## Structure
 
-- `Sources/main.swift` : toute l'app (AppKit + SwiftUI)
-- `tools/make-icon.swift` : génération de l'icône et de l'icône de barre de menu
-- `build.sh` : compilation, signature, installation
+- `Sources/main.swift` : démarrage
+- `Sources/AppController.swift` : barre des menus, détection de la sélection, barre et panneau
+- `Sources/UI.swift` : barre d'actions, panneau de résultat, surlignage des corrections
+- `Sources/Claude.swift` : consignes et appels à Claude (CLI Claude Code ou API Messages)
+- `Sources/Settings.swift` : réglages, langue de l'interface, trousseau, actions personnalisables
+- `Sources/SettingsWindow.swift` : fenêtre de réglages
+- `Sources/Selection.swift` : lecture de la sélection, copier-coller
+- `Sources/HotKey.swift` : raccourci clavier global
+- `Sources/Updater.swift` : déplacement dans Applications, mises à jour depuis GitHub
+- `tools/make-icon.swift`, `tools/make-dmg-background.swift` : génération des visuels
+- `build.sh` : compilation (binaire universel), signature, installation
 - `scripts/make-dmg.sh` : image disque d'installation (nécessite `brew install create-dmg`)
-- `scripts/release.sh <version> <notes.md>` : publication d'une version (DMG + release GitHub)
-- `docs/demo.svg` : animation de démonstration
+- `scripts/release.sh <version> <notes.md>` : publication d'une version (DMG, release GitHub, tap Homebrew)
 - `scripts/check-public.sh`, `.githooks/` : contrôle avant publication
+- `install.sh` : installation en une ligne
+- `docs/` : animation et captures du README
+
+## Déclencheurs de test
+
+L'app écoute une notification distribuée `local.plume.debug` (objet : `panel`, `toolbar`, `settings`, `update` ou `fix:<texte>`), utile pour tester et faire les captures sans manipulation à la souris.
