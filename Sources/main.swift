@@ -681,7 +681,8 @@ struct ResultView: View {
             Button {
                 model.copy()
                 copied = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
+                // Bref retour « Copié », puis fermeture du panneau.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { model.close() }
             } label: {
                 Label(copied ? "Copié" : "Copier", systemImage: copied ? "checkmark" : "doc.on.doc")
             }
