@@ -25,6 +25,16 @@ Le panneau de résultat permet de copier la réponse en texte brut (⇧⌘C), de
 
 ## Installation
 
+### Depuis la release
+
+Télécharger `Plume-1.0.zip` dans les [releases](https://github.com/gonzalt03/plume/releases), le décompresser et déplacer `Plume.app` dans `~/Applications`. L'app n'est pas notariée par Apple : au premier lancement, faire clic droit > Ouvrir, ou lever la quarantaine :
+
+```bash
+xattr -dr com.apple.quarantine ~/Applications/Plume.app
+```
+
+### Depuis les sources
+
 ```bash
 ./build.sh
 ```
@@ -52,8 +62,20 @@ cd - && rm -rf "$D"
 - Le menu de la barre permet de désactiver la barre, de choisir le modèle (Haiku par défaut, Sonnet, Opus) et de lancer Plume à l'ouverture de session.
 - Journal de diagnostic : `~/Library/Logs/Plume.log`.
 
+## Contrôle avant publication
+
+Le dépôt est public : un contrôle automatique bloque tout commit ou push contenant des données sensibles (clés privées, jetons d'API, mots de passe, chemins personnels, adresses e-mail autres que l'adresse noreply GitHub, fichiers `.p12`/`.pem`/`.env`/`.log`, fichiers de plus de 5 Mo).
+
+```bash
+git config core.hooksPath .githooks   # à faire une fois après le clone
+scripts/check-public.sh all           # contrôle manuel de tout le dépôt
+```
+
+Des termes privés supplémentaires (un motif par ligne) peuvent être listés dans `.public-check-local`, fichier ignoré par git.
+
 ## Structure
 
 - `Sources/main.swift` : toute l'app (AppKit + SwiftUI)
 - `tools/make-icon.swift` : génération de l'icône et de l'icône de barre de menu
 - `build.sh` : compilation, signature, installation
+- `scripts/check-public.sh`, `.githooks/` : contrôle avant publication

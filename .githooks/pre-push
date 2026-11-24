@@ -1,0 +1,8 @@
+#!/bin/bash
+# Contrôle les commits qui vont être poussés.
+zero=0000000000000000000000000000000000000000
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then range="$local_sha"; else range="$remote_sha..$local_sha"; fi
+  "$(git rev-parse --show-toplevel)/scripts/check-public.sh" push "$range" || exit 1
+done
