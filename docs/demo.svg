@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="500" viewBox="0 0 820 500" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Plume : sélectionner un texte, choisir Corriger, remplacer</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f1ff"/>
+      <stop offset="1" stop-color="#fff1ec"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#2a1d5c" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .anim { animation-duration: 12s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
+      #selection { animation-name: sel; }
+      @keyframes sel { 0%,8% { width: 0; opacity: 1 } 18%,67% { width: 604px; opacity: 1 } 69%,100% { width: 604px; opacity: 0 } }
+      #toolbar { animation-name: tb; opacity: 0 }
+      @keyframes tb { 0%,20% { opacity: 0; transform: translateY(6px) } 22%,38% { opacity: 1; transform: translateY(0) } 40%,100% { opacity: 0 } }
+      #tooltip { animation-name: tt; opacity: 0 }
+      @keyframes tt { 0%,29% { opacity: 0 } 31%,37% { opacity: 1 } 38%,100% { opacity: 0 } }
+      #btnFlash { animation-name: bf; opacity: 0 }
+      @keyframes bf { 0%,28% { opacity: 0 } 30%,36% { opacity: .5 } 37%,39% { opacity: 1 } 40%,100% { opacity: 0 } }
+      #panel { animation-name: pn; opacity: 0 }
+      @keyframes pn { 0%,39% { opacity: 0; transform: translateY(8px) } 41%,66% { opacity: 1; transform: translateY(0) } 68%,100% { opacity: 0 } }
+      #loading { animation-name: ld; opacity: 0 }
+      @keyframes ld { 0%,40% { opacity: 0 } 41%,49% { opacity: 1 } 50%,100% { opacity: 0 } }
+      #result { animation-name: rs; opacity: 0 }
+      @keyframes rs { 0%,49% { opacity: 0 } 51%,100% { opacity: 1 } }
+      #replaceFlash { animation-name: rf; opacity: 0 }
+      @keyframes rf { 0%,63% { opacity: 0 } 65%,67% { opacity: 1 } 68%,100% { opacity: 0 } }
+      #original { animation-name: og; }
+      @keyframes og { 0%,68% { opacity: 1 } 70%,95% { opacity: 0 } 99%,100% { opacity: 1 } }
+      #corrected { animation-name: cr; opacity: 0 }
+      @keyframes cr { 0%,68% { opacity: 0 } 70%,93% { opacity: 1 } 97%,100% { opacity: 0 } }
+      #fixedGlow { animation-name: fg; opacity: 0 }
+      @keyframes fg { 0%,69% { opacity: 0 } 71% { opacity: .55 } 86%,100% { opacity: 0 } }
+      #cursor { animation-name: cu; }
+      @keyframes cu {
+        0%   { transform: translate(600px, 400px) }
+        6%   { transform: translate(66px, 262px) }
+        8%   { transform: translate(66px, 262px) }
+        18%  { transform: translate(670px, 262px) }
+        22%  { transform: translate(670px, 262px) }
+        30%  { transform: translate(326px, 218px) }
+        39%  { transform: translate(326px, 218px) }
+        58%  { transform: translate(600px, 440px) }
+        63%  { transform: translate(628px, 428px) }
+        68%  { transform: translate(628px, 428px) }
+        90%  { transform: translate(700px, 470px) }
+        100% { transform: translate(600px, 400px) }
+      }
+      .cap { opacity: 0 }
+      #cap1 { animation-name: c1 } @keyframes c1 { 0%,1% { opacity: 0 } 3%,20% { opacity: 1 } 22%,100% { opacity: 0 } }
+      #cap2 { animation-name: c2 } @keyframes c2 { 0%,21% { opacity: 0 } 23%,39% { opacity: 1 } 41%,100% { opacity: 0 } }
+      #cap3 { animation-name: c3 } @keyframes c3 { 0%,40% { opacity: 0 } 42%,60% { opacity: 1 } 62%,100% { opacity: 0 } }
+      #cap4 { animation-name: c4 } @keyframes c4 { 0%,61% { opacity: 0 } 63%,95% { opacity: 1 } 98%,100% { opacity: 0 } }
+    </style>
+  </defs>
+
+  <rect width="820" height="500" fill="url(#bg)"/>
+
+  <!-- Fenêtre d'une app quelconque -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="30" width="740" height="420" rx="14" fill="#ffffff"/>
+  </g>
+  <path d="M40 44a14 14 0 0 1 14-14h712a14 14 0 0 1 14 14v22H40z" fill="#f2f1f6"/>
+  <circle cx="62" cy="48" r="6" fill="#ff5f57"/><circle cx="82" cy="48" r="6" fill="#febc2e"/><circle cx="102" cy="48" r="6" fill="#28c840"/>
+  <text x="410" y="53" text-anchor="middle" font-size="13" fill="#6b6b78">Nouveau message</text>
+  <text x="70" y="98" font-size="14" fill="#8a8a96">À :  <tspan fill="#33333d">equipe@example.com</tspan></text>
+  <text x="70" y="126" font-size="14" fill="#8a8a96">Objet :  <tspan fill="#33333d">Livraison de la semaine</tspan></text>
+  <line x1="70" y1="146" x2="750" y2="146" stroke="#ececf1"/>
+
+  <!-- Texte : sélection, version fautive puis corrigée -->
+  <rect id="selection" class="anim" x="66" y="243" height="28" width="0" rx="3" fill="#b9d6ff"/>
+  <rect id="fixedGlow" class="anim" x="66" y="243" width="604" height="28" rx="3" fill="#b8f0c8"/>
+  <text id="original" class="anim" x="70" y="263" font-size="18" fill="#1f1f27" textLength="596" lengthAdjust="spacingAndGlyphs">Bonjour, je vous confirme que les fichier on bien été transmit hier soir.</text>
+  <text id="corrected" class="anim" x="70" y="263" font-size="18" fill="#1f1f27" textLength="600" lengthAdjust="spacingAndGlyphs">Bonjour, je vous confirme que les fichiers ont bien été transmis hier soir.</text>
+  <text x="70" y="310" font-size="18" fill="#1f1f27">Bonne journée,</text>
+  <text x="70" y="338" font-size="18" fill="#1f1f27">Camille</text>
+
+  <!-- Barre Plume -->
+  <g id="toolbar" class="anim">
+    <g filter="url(#shadow)"><rect x="266" y="196" width="232" height="40" rx="11" fill="#ffffff" stroke="#e4e2ec"/></g>
+    <rect id="btnFlash" class="anim" x="310" y="201" width="30" height="30" rx="7" fill="#ece8fb"/>
+    <!-- Demander à Claude -->
+    <path d="M287 205c1.2 6 3 7.8 9 9-6 1.2-7.8 3-9 9-1.2-6-3-7.8-9-9 6-1.2 7.8-3 9-9z" fill="#8b5cf6"/>
+    <line x1="304" y1="206" x2="304" y2="226" stroke="#e4e2ec"/>
+    <!-- Corriger -->
+    <text x="316" y="222" font-size="13" font-weight="600" fill="#2b2b33">A</text>
+    <path d="M326 216l3 3 6-7" stroke="#2b2b33" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Reformuler -->
+    <path d="M350 228l12-12" stroke="#2b2b33" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M364 205l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" fill="#2b2b33"/>
+    <!-- Traduire -->
+    <text x="380" y="222" font-size="13" font-weight="600" fill="#2b2b33">A</text>
+    <text x="389" y="226" font-size="11" fill="#2b2b33">文</text>
+    <!-- Résumer -->
+    <path d="M412 210h16M412 216h16M412 222h11" stroke="#2b2b33" stroke-width="2" stroke-linecap="round"/>
+    <!-- Raccourcir -->
+    <path d="M444 207l6 6m0 0v-5m0 5h-5M466 225l-6-6m0 0v5m0-5h5" stroke="#2b2b33" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Bulle d'aide -->
+  <g id="tooltip" class="anim">
+    <rect x="141" y="160" width="370" height="26" rx="7" fill="#1d1b26" fill-opacity=".9"/>
+    <text x="326" y="177" text-anchor="middle" font-size="12" fill="#ffffff">Corriger : orthographe et grammaire, sans changer le style</text>
+  </g>
+
+  <!-- Panneau de résultat -->
+  <g id="panel" class="anim">
+    <g filter="url(#shadow)"><rect x="190" y="282" width="500" height="172" rx="14" fill="#f6f5f9" stroke="#e4e2ec"/></g>
+    <text x="206" y="306" font-size="15" font-weight="600" fill="#1f1f27">Corriger <tspan font-size="11" fill="#8a8a96">⌄</tspan></text>
+    <text x="640" y="305" font-size="11" fill="#8a8a96" text-anchor="end">Haiku</text>
+    <path d="M662 297l8 8m0-8l-8 8" stroke="#8a8a96" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="202" y="316" width="476" height="128" rx="10" fill="#ffffff"/>
+    <rect x="214" y="326" width="452" height="30" rx="8" fill="#f0eff4"/>
+    <text x="224" y="346" font-size="12" fill="#8a8a96">Bonjour, je vous confirme que les fichier on bien été transmit hier soir.</text>
+    <text id="loading" class="anim" x="224" y="382" font-size="14" fill="#8a8a96">Claude réfléchit…</text>
+    <text id="result" class="anim" x="224" y="382" font-size="14" fill="#1f1f27" textLength="440" lengthAdjust="spacingAndGlyphs">Bonjour, je vous confirme que les fichiers ont bien été transmis hier soir.</text>
+    <line x1="214" y1="400" x2="666" y2="400" stroke="#ececf1"/>
+    <path d="M222 416c.8 4 2 5.2 6 6-4 .8-5.2 2-6 6-.8-4-2-5.2-6-6 4-.8 5.2-2 6-6z" fill="#8b5cf6"/>
+    <text x="236" y="427" font-size="12" fill="#a3a3ad">Demander un suivi</text>
+    <rect x="510" y="411" width="70" height="24" rx="6" fill="#ffffff" stroke="#d9d8e0"/>
+    <text x="545" y="427" text-anchor="middle" font-size="12" fill="#2b2b33">Copier</text>
+    <rect x="588" y="411" width="78" height="24" rx="6" fill="#3b82f6"/>
+    <rect id="replaceFlash" class="anim" x="588" y="411" width="78" height="24" rx="6" fill="#1d5fd0"/>
+    <text x="627" y="427" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">Remplacer</text>
+  </g>
+
+  <!-- Curseur -->
+  <g id="cursor" class="anim">
+    <path d="M0 0v18l4.5-4.2 3 6.8 3-1.3-3-6.6H14z" fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Légendes -->
+  <g font-size="15" font-weight="600" fill="#4b3a9a" text-anchor="middle">
+    <text id="cap1" class="anim cap" x="410" y="482">1. Sélectionne du texte dans n'importe quelle app</text>
+    <text id="cap2" class="anim cap" x="410" y="482">2. Choisis une action dans la barre Plume</text>
+    <text id="cap3" class="anim cap" x="410" y="482">3. Claude propose une version corrigée</text>
+    <text id="cap4" class="anim cap" x="410" y="482">4. Remplace ou copie le résultat en un clic</text>
+  </g>
+</svg>

@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 
 VERSION="${1:?Usage : scripts/release.sh <version> <fichier-notes.md>}"
 NOTES="${2:?Fichier de notes de version requis}"
+[ -f "$NOTES" ] || { echo "Fichier de notes introuvable : $NOTES"; exit 1; }
 [ -z "$(git status --porcelain)" ] || { echo "Arbre de travail non propre : committer d'abord."; exit 1; }
 
 scripts/check-public.sh all

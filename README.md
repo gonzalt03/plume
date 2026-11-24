@@ -4,6 +4,8 @@ Petite app macOS de barre de menu : sélectionne du texte dans n'importe quelle 
 
 <img src="Resources/AppIcon-preview.png" width="128" alt="Icône Plume">
 
+![Démonstration : sélection d'un texte, action Corriger, remplacement](docs/demo.svg)
+
 ## Actions
 
 | Action | Effet |
@@ -27,11 +29,13 @@ Le panneau de résultat permet de copier la réponse en texte brut (⇧⌘C), de
 
 ### Depuis la release
 
-Télécharger `Plume-1.0.zip` dans les [releases](https://github.com/gonzalt03/plume/releases), le décompresser et déplacer `Plume.app` dans `~/Applications`. L'app n'est pas notariée par Apple : au premier lancement, faire clic droit > Ouvrir, ou lever la quarantaine :
+Télécharger le `.dmg` de la [dernière release](https://github.com/gonzalt03/plume/releases/latest), l'ouvrir et glisser Plume sur le dossier Applications. L'app n'est pas notariée par Apple : au premier lancement, faire clic droit > Ouvrir, ou lever la quarantaine :
 
 ```bash
-xattr -dr com.apple.quarantine ~/Applications/Plume.app
+xattr -dr com.apple.quarantine /Applications/Plume.app
 ```
+
+Plume se met ensuite à jour toute seule : elle vérifie les releases GitHub au lancement puis toutes les 24 h et propose d'installer la nouvelle version (menu « Rechercher les mises à jour… »).
 
 ### Depuis les sources
 
@@ -78,4 +82,7 @@ Des termes privés supplémentaires (un motif par ligne) peuvent être listés d
 - `Sources/main.swift` : toute l'app (AppKit + SwiftUI)
 - `tools/make-icon.swift` : génération de l'icône et de l'icône de barre de menu
 - `build.sh` : compilation, signature, installation
+- `scripts/make-dmg.sh` : image disque d'installation (nécessite `brew install create-dmg`)
+- `scripts/release.sh <version> <notes.md>` : publication d'une version (DMG + release GitHub)
+- `docs/demo.svg` : animation de démonstration
 - `scripts/check-public.sh`, `.githooks/` : contrôle avant publication
