@@ -159,6 +159,7 @@ final class Updater {
             if interactive { info(L.t("Impossible de vérifier les mises à jour", "Could not check for updates"), error ?? L.t("Aucune release avec un DMG trouvée.", "No release with a DMG found.")) }
             return
         }
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastUpdateCheck")
         guard Self.isNewer(release.version, than: currentVersion) else {
             available = nil; onChange()
             if interactive { info(L.t("Plume est à jour", "Plume is up to date"), L.t("Version \(currentVersion), la plus récente.", "Version \(currentVersion) is the latest.")) }

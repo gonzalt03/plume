@@ -7,6 +7,12 @@ import ApplicationServices
 enum Keyboard {
     static let keyC: CGKeyCode = 8
     static let keyV: CGKeyCode = 9
+    /// Marque les frappes simulées par Plume, pour ne pas les prendre pour une saisie de l'utilisateur.
+    static let syntheticTag: Int64 = 0x504C_554D // "PLUM"
+
+    static func isSynthetic(_ event: NSEvent) -> Bool {
+        event.cgEvent?.getIntegerValueField(.eventSourceUserData) == syntheticTag
+    }
 
     static func pressCommand(_ key: CGKeyCode) {
         let src = CGEventSource(stateID: .combinedSessionState)
@@ -14,6 +20,8 @@ enum Keyboard {
         let up = CGEvent(keyboardEventSource: src, virtualKey: key, keyDown: false)
         down?.flags = .maskCommand
         up?.flags = .maskCommand
+        down?.setIntegerValueField(.eventSourceUserData, value: syntheticTag)
+        up?.setIntegerValueField(.eventSourceUserData, value: syntheticTag)
         down?.post(tap: .cghidEventTap)
         up?.post(tap: .cghidEventTap)
     }

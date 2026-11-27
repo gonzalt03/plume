@@ -191,7 +191,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Task { @MainActor in self?.handleMouseUp(at: point, clicks: clicks, shift: shift) }
         }) { monitors.append(m) }
 
-        if let m = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .scrollWheel, .rightMouseDown], handler: { [weak self] _ in
+        if let m = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .scrollWheel, .rightMouseDown], handler: { [weak self] e in
+            // Le ⌘C simulé pour lire la sélection (Google Docs, apps sans accessibilité) ne doit pas fermer la barre.
+            if e.type == .keyDown, Keyboard.isSynthetic(e) { return }
             Task { @MainActor in
                 self?.selectionToken = UUID()
                 self?.hideToolbar()
